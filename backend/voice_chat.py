@@ -1,84 +1,64 @@
-import sounddevice as sd
-import numpy as np
-import soundfile as sf
-import whisper
-from TTS.api import TTS
+# chat.py
 import time
+import traceback
+from chat import listen_once
+from whisper_test import speech_to_text
+from emotion_engine import detect_emotion
+from response_engine import generate_reply
+from voice_emotion_map import get_voice_settings
+from voice_clone import speak
 
-# ================= SETTINGS =================
-MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
-SPEAKER_WAV = "voices/my_voice.wav"
-OUTPUT_PATH = "output/output.wav"
-LANGUAGE = "en"
 
-SAMPLE_RATE = 16000
-RECORD_SECONDS = 6
-WAKE_WORD = "hello"
-# ==========================================
+def main():
+    print("\n🎤 Emily AI - Voice Chat Started")
+    print("Say something... (Ctrl+C to stop)\n")
 
-print("🔁 Loading models...")
-whisper_model = whisper.load_model("base")
-tts = TTS(model_name=MODEL_NAME)
-
-# -------- Emotion Detection --------
-def detect_emotion(text):
-    text = text.lower()
-    if any(w in text for w in ["sad", "tired", "lonely", "cry"]):
-        return "sad"
-    if any(w in text for w in ["happy", "great", "love", "awesome"]):
-        return "happy"
-    if any(w in text for w in ["angry", "mad", "hate"]):
-        return "angry"
-    return "calm"
-
-# -------- Reply Generator --------
-def generate_reply(text):
-    return f"I heard you say {text}. I'm here with you."
-
-print("\n🎧 Emily is now listening...")
-print("Say: 'Hey Emily' to activate\n")
-
-try:
     while True:
-        # Listen continuously
-        audio = sd.rec(int(RECORD_SECONDS * SAMPLE_RATE),
-                        samplerate=SAMPLE_RATE,
-                        channels=1,
-                        dtype="float32")
-        sd.wait()
+        try:
+            # 1️⃣ Listen
+            print("🎧 Listening...")
+            audio = listen_once()
 
-        sf.write("temp.wav", audio, SAMPLE_RATE)
+            if audio is None:
+                print("⚠️ No audio captured")
+                continue
 
-        result = whisper_model.transcribe("temp.wav")
-        text = str(result["text"]).lower().strip()
+            # 2️⃣ Speech → Text
+            text = speech_to_text(audio)
 
-        if not text:
-            continue
+            if not text or not text.strip():
+                print("⚠️ No speech detected")
+                continue
 
-        print("🧑 You said:", text)
+            print(f"🧑 You: {text}")
 
-        # Wake word check
-        if WAKE_WORD not in text:
-            print("🟡 Waiting for wake word...")
-            continue
+            # 3️⃣ Emotion Detection
+            emotion, emotion_scores = detect_emotion(text)
 
-        print("✅ Wake word detected")
+            print(f"🎭 Emotion: {emotion}")
 
-        emotion = detect_emotion(text)
-        print(f"🎭 Emotion: {emotion}")
+            # 4️⃣ Emotion → Voice Settings
+            voice_settings = get_voice_settings(emotion)
 
-        reply = generate_reply(text)
+            # 5️⃣ AI Reply
+            reply = generate_reply(text)
+            print(f"🤖 Emily: {reply}")
+            print(f"📊 Scores: {emotion_scores}")
 
-        tts.tts_to_file(
-            text=reply,
-            speaker_wav=SPEAKER_WAV,
-            language=LANGUAGE,
-            file_path=OUTPUT_PATH,
-            temperature=0.9,
-            speed=1.0
-        )
+            # 6️⃣ Speak
+            speak(reply, voice_settings)
 
-        print("🔊 Emily spoke\n")
+            print("────────────────────────────")
 
-except KeyboardInterrupt:
-    print("\n🛑 Stopped.")
+        except KeyboardInterrupt:
+            print("\n🛑 Chat stopped by user")
+            break
+
+        except Exception as e:
+            print("❌ Error:", e)
+            traceback.print_exc()
+            time.sleep(1)
+
+
+if __name__ == "__main__":
+    main()
