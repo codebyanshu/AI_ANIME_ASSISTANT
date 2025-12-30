@@ -1,81 +1,87 @@
+import time
+import traceback
+
 from whisper_test import speech_to_text
-from action_engine import handle_action
 from emotion_engine import detect_emotion
 from response_engine import generate_reply
 from voice_emotion_map import get_voice_settings
 from voice_clone import speak
 from memory import Memory
-from emotion_state import update_emotion
 from chat import listen_once
-import time, traceback
+
+# SAFE ACTION CONTROL
+from action_controller import can_execute, execute_command
 
 memory = Memory()
 
+
 def main():
-    print("\n🎤 Emily AI - Voice Chat Started (Step 19)\n")
+    print("\n🎤 Emily AI - Voice Chat Started (Step 20)\n")
 
     while True:
         try:
-            # 1️⃣ Listen
+            # 🎧 Listen
             print("🎧 Listening...")
             audio = listen_once()
 
             if audio is None:
                 continue
 
-            # 2️⃣ Speech → Text
+            # 🗣 Speech → Text
             text = speech_to_text(audio)
-
             if not text or not text.strip():
                 print("⚠️ No speech detected")
                 continue
 
             print(f"🧑 You: {text}")
 
-            # 3️⃣ Emotion Detection
+            # 🎭 Emotion detection
             emotion, scores = detect_emotion(text)
-            emotion_info = update_emotion(emotion)
-
             print(f"🎭 Emotion: {emotion}")
-            print(f"📊 Scores: {scores}")
+            
+            
 
-            # 4️⃣ Voice settings
+            # 🎛 Voice settings
             voice_settings = get_voice_settings(emotion)
 
-            # 5️⃣ AI Reply (OLLAMA)
-            reply = generate_reply(
-                text,
-                emotion_info["current"],
-                memory.context()
-            )
-            
-            # Step 20: Action check
-            action_result = handle_action(text)
+            # ================= STEP 20: SAFE ACTION CONTROL =================
+            text_lower = text.lower()
 
-            if action_result:
-                reply = action_result
-            else:
-                reply = generate_reply(text, emotion, memory.context())
+            if any(word in text_lower for word in ["open", "start", "launch"]):
 
+                if can_execute(text_lower):
+                    print(f"🛑 Permission required to run: '{text_lower}'")
+                    confirm = input("Type YES to confirm: ").strip().lower()
 
-            # 6️⃣ Memory
+                    if confirm == "yes":
+                        success, msg = execute_command(text_lower)
+                        reply = msg
+                    else:
+                        reply = "Action cancelled."
+
+                    memory.add(text, reply)
+                    print(f"🤖 Emily: {reply}")
+                    speak(reply, voice_settings)
+                    print("────────────────────────")
+                    continue  # VERY IMPORTANT
+
+            # ================= NORMAL CHAT =================
+            reply = generate_reply(text, emotion, memory.context())
             memory.add(text, reply)
 
             print(f"🤖 Emily: {reply}")
-
-            # 7️⃣ Speak
             speak(reply, voice_settings)
-
             print("────────────────────────")
 
         except KeyboardInterrupt:
-            print("\n🛑 Chat stopped by user")
+            print("\n🛑 Voice chat stopped.")
             break
 
         except Exception as e:
             print("❌ Error:", e)
             traceback.print_exc()
             time.sleep(1)
+
 
 if __name__ == "__main__":
     main()
