@@ -1,7 +1,5 @@
-import time
-import traceback
+# voice_chat.py
 
-from chat import listen_once
 from whisper_test import speech_to_text
 from emotion_engine import detect_emotion
 from response_engine import generate_reply
@@ -9,15 +7,16 @@ from voice_emotion_map import get_voice_settings
 from voice_clone import speak
 from memory import Memory
 from emotion_state import update_emotion
+from chat import listen_once
 
-# ======================
-# INIT MEMORY
-# ======================
+import time
+import traceback
+
 memory = Memory()
 
 def main():
-    print("\n🎤 Emily AI - Voice Chat Started")
-    print("Say something... (Ctrl+C to stop)\n")
+    print("\n🎤 Emily AI – Voice Chat Started")
+    print("Speak naturally (Ctrl+C to stop)\n")
 
     while True:
         try:
@@ -39,34 +38,33 @@ def main():
             print(f"🧑 You: {text}")
 
             # 3️⃣ Emotion Detection
-            emotion, emotion_scores = detect_emotion(text)
+            emotion, scores = detect_emotion(text)
             emotion_info = update_emotion(emotion)
 
             print(f"🎭 Emotion: {emotion}")
+            print(f"📊 Scores: {scores}")
 
-            # 4️⃣ Voice settings
+            # 4️⃣ Voice Settings (FIXED)
             voice_settings = get_voice_settings(emotion)
 
-            # 5️⃣ Generate reply (FIXED)
+            # 5️⃣ AI Reply (Ollama / Mistral)
             reply = generate_reply(
                 text,
                 emotion_info["current"],
                 memory.context()
             )
 
-            # 6️⃣ Save memory
             memory.add(text, reply)
 
             print(f"🤖 Emily: {reply}")
-            print(f"📊 Emotion Scores: {emotion_scores}")
 
-            # 7️⃣ Speak
+            # 6️⃣ Speak
             speak(reply, voice_settings)
 
             print("────────────────────────────")
 
         except KeyboardInterrupt:
-            print("\n🛑 Chat stopped by user")
+            print("\n🛑 Voice chat stopped by user")
             break
 
         except Exception as e:

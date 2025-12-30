@@ -1,16 +1,57 @@
-def generate_reply(text, emotion, memory_context):
-    if emotion == "sad":
-        return "I'm here with you. You can talk freely, I'm listening."
-    if emotion == "happy":
-        return "I love hearing you this excited. What happened next?"
-    if emotion == "angry":
-        return "It sounds intense. Want to tell me what made you feel this way?"
+from llm_engine import generate_ai_reply
 
-    # calm / neutral
-    if len(text.split()) < 4:
-        return "Can you tell me a little more?"
+def generate_reply(user_text, emotion, memory_context=""):
+    return generate_ai_reply(user_text, emotion, memory_context)
 
-    return "That's interesting. Tell me more about it."
+
+# import requests
+
+# OLLAMA_URL = "http://localhost:11434/api/generate"
+# MODEL_NAME = "mistral"   # or llama3, phi, etc
+
+# def generate_reply(user_text, emotion, memory_context):
+#     prompt = f"""
+# You are Emily, a friendly emotional AI assistant.
+
+# Emotion: {emotion}
+# Memory:
+# {memory_context}
+
+# User said:
+# {user_text}
+
+# Reply naturally, emotionally, and helpfully.
+# """
+
+#     response = requests.post(
+#         OLLAMA_URL,
+#         json={
+#             "model": MODEL_NAME,
+#             "prompt": prompt,
+#             "stream": False
+#         }
+#     )
+
+#     if response.status_code != 200:
+#         return "Sorry, my thinking engine is not responding."
+
+#     return response.json()["response"].strip()
+
+
+
+# def generate_reply(text, emotion, memory_context):
+#     if emotion == "sad":
+#         return "I'm here with you. You can talk freely, I'm listening."
+#     if emotion == "happy":
+#         return "I love hearing you this excited. What happened next?"
+#     if emotion == "angry":
+#         return "It sounds intense. Want to tell me what made you feel this way?"
+
+#     # calm / neutral
+#     if len(text.split()) < 4:
+#         return "Can you tell me a little more?"
+
+#     return "That's interesting. Tell me more about it."
 
 
 
