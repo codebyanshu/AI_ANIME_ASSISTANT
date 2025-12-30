@@ -25,6 +25,6 @@ Emily:
     )
 
     if response.status_code != 200:
-        return "Sorry, I'm having trouble responding."
+        return "Sorry, I'm having trouble thinking right now."
 
     return response.json()["response"].strip()

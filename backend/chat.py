@@ -5,9 +5,12 @@ import numpy as np
 
 SAMPLE_RATE = 16000
 
-def listen_once(duration_seconds: int = 3):
-    
-    audio = sd.rec(int(duration_seconds * SAMPLE_RATE), samplerate=SAMPLE_RATE, channels=1)
+def listen_once(duration_seconds: int = 5):
+    audio = sd.rec(
+        int(duration_seconds * SAMPLE_RATE),
+        samplerate=SAMPLE_RATE,
+        channels=1
+    )
     sd.wait()
     return audio.flatten()
 

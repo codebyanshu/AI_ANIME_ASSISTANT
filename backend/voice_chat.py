@@ -1,6 +1,5 @@
-# voice_chat.py
-
 from whisper_test import speech_to_text
+from action_engine import handle_action
 from emotion_engine import detect_emotion
 from response_engine import generate_reply
 from voice_emotion_map import get_voice_settings
@@ -8,15 +7,12 @@ from voice_clone import speak
 from memory import Memory
 from emotion_state import update_emotion
 from chat import listen_once
-
-import time
-import traceback
+import time, traceback
 
 memory = Memory()
 
 def main():
-    print("\n🎤 Emily AI – Voice Chat Started")
-    print("Speak naturally (Ctrl+C to stop)\n")
+    print("\n🎤 Emily AI - Voice Chat Started (Step 19)\n")
 
     while True:
         try:
@@ -25,7 +21,6 @@ def main():
             audio = listen_once()
 
             if audio is None:
-                print("⚠️ No audio captured")
                 continue
 
             # 2️⃣ Speech → Text
@@ -44,27 +39,37 @@ def main():
             print(f"🎭 Emotion: {emotion}")
             print(f"📊 Scores: {scores}")
 
-            # 4️⃣ Voice Settings (FIXED)
+            # 4️⃣ Voice settings
             voice_settings = get_voice_settings(emotion)
 
-            # 5️⃣ AI Reply (Ollama / Mistral)
+            # 5️⃣ AI Reply (OLLAMA)
             reply = generate_reply(
                 text,
                 emotion_info["current"],
                 memory.context()
             )
+            
+            # Step 20: Action check
+            action_result = handle_action(text)
 
+            if action_result:
+                reply = action_result
+            else:
+                reply = generate_reply(text, emotion, memory.context())
+
+
+            # 6️⃣ Memory
             memory.add(text, reply)
 
             print(f"🤖 Emily: {reply}")
 
-            # 6️⃣ Speak
+            # 7️⃣ Speak
             speak(reply, voice_settings)
 
-            print("────────────────────────────")
+            print("────────────────────────")
 
         except KeyboardInterrupt:
-            print("\n🛑 Voice chat stopped by user")
+            print("\n🛑 Chat stopped by user")
             break
 
         except Exception as e:

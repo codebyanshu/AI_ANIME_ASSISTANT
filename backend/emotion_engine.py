@@ -1,4 +1,3 @@
-# emotion_engine.py
 from typing import Dict, Tuple
 
 emotion_state = {
@@ -9,7 +8,7 @@ emotion_state = {
 def detect_emotion(text: str) -> Tuple[str, Dict[str, float]]:
     text = text.lower()
 
-    scores = {
+    scores: Dict[str, float] = {
         "sad": 0.0,
         "happy": 0.0,
         "angry": 0.0,
@@ -23,9 +22,14 @@ def detect_emotion(text: str) -> Tuple[str, Dict[str, float]]:
     if any(w in text for w in ["angry", "hate", "annoyed"]):
         scores["angry"] += 0.6
 
-    emotion = max(scores, key=scores.get)
+    emotion = max(scores.items(), key=lambda x: x[1])[0]
     emotion_state["current"] = emotion
     emotion_state["intensity"] = scores[emotion]
 
     return emotion, scores
-
+def update_emotion(new_emotion: str) -> Dict[str, str]:
+    emotion_state["current"] = new_emotion
+    return {
+        "current": emotion_state["current"],
+        "intensity": emotion_state["intensity"]
+    }
