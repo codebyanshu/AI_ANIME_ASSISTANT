@@ -4,11 +4,6 @@ import wave
 import tempfile
 import os
 
-
-from faster_whisper import WhisperModel
-import numpy as np
-import tempfile, wave, os
-
 model = WhisperModel("small", device="cpu", compute_type="int8")
 
 def speech_to_text(audio, sample_rate=16000):
@@ -28,8 +23,6 @@ def speech_to_text(audio, sample_rate=16000):
     return "".join(seg.text for seg in segments).strip()
 
 # Initialize model once at import (heavy but acceptable). Do NOT transcribe here.
-model = WhisperModel("small", device="cpu", compute_type="int8")
-
 
 def _write_wav_file(audio: np.ndarray, sample_rate: int, filename: str):
     """Write a mono numpy array to a 16-bit PCM WAV file."""
@@ -48,42 +41,6 @@ def _write_wav_file(audio: np.ndarray, sample_rate: int, filename: str):
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         wf.writeframes(audio_int16.tobytes())
-
-
-# def speech_to_text(audio, sample_rate: int = 16000, language: str = "en") -> str:
-#     """Transcribe audio.
-
-#     - If `audio` is a str, treat it as a filename and transcribe it.
-#     - If `audio` is a numpy array (1-D or 2-D), write a temporary WAV and transcribe.
-#     Returns the concatenated transcript as a single string.
-#     """
-#     if isinstance(audio, str):
-#         segments, info = model.transcribe(audio, language=language)
-#         return "".join(segment.text for segment in segments)
-
-#     # Assume numpy array
-#     try:
-#         import numpy as _np
-#     except Exception:
-#         raise RuntimeError("speech_to_text expects a filename or a numpy array")
-
-#     if not isinstance(audio, _np.ndarray):
-#         raise TypeError("audio must be a filepath string or a numpy.ndarray")
-
-#     tmp = None
-#     try:
-#         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
-#         tmp.close()
-#         _write_wav_file(audio, sample_rate, tmp.name)
-#         segments, info = model.transcribe(tmp.name, language=language)
-#         return "".join(segment.text for segment in segments)
-#     finally:
-#         if tmp is not None:
-#             try:
-#                 os.remove(tmp.name)
-#             except Exception:
-#                 pass
-
 
 if __name__ == "__main__":
     # Simple manual test when executed directly (won't run on import)

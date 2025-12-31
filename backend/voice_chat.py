@@ -1,87 +1,63 @@
 import time
 import traceback
-
-from whisper_test import speech_to_text
-from emotion_engine import detect_emotion
-from response_engine import generate_reply
-from voice_emotion_map import get_voice_settings
-from voice_clone import speak
+from vad_listener import VADListener  # New VAD
+from emotion_engine import detect_emotion, update_emotion  # Fixed
+from response_engine import generate_reply  # Uses fixed LLM
+from voice_emotion_map import get_voice_settings  # Fixed
+from voice_clone import speak  # Fixed
 from memory import Memory
-from chat import listen_once
-
-# SAFE ACTION CONTROL
-from action_controller import can_execute, execute_command
+from action_controller import ActionController  # Your updated one
 
 memory = Memory()
-
+controller = ActionController()
 
 def main():
-    print("\n🎤 Emily AI - Voice Chat Started (Step 20)\n")
-
-    while True:
-        try:
-            # 🎧 Listen
-            print("🎧 Listening...")
-            audio = listen_once()
-
-            if audio is None:
-                continue
-
-            # 🗣 Speech → Text
-            text = speech_to_text(audio)
-            if not text or not text.strip():
-                print("⚠️ No speech detected")
-                continue
-
-            print(f"🧑 You: {text}")
-
-            # 🎭 Emotion detection
-            emotion, scores = detect_emotion(text)
-            print(f"🎭 Emotion: {emotion}")
-            
-            
-
-            # 🎛 Voice settings
+    print("\nEmily: Hey bestie! I'm here - just chat away. I'll listen till you're done. 💕\n")
+    
+    listener = VADListener()
+    
+    def on_utterance(text):
+        if not text.strip():
+            return
+        
+        print(f"You: {text}")
+        
+        # Emotion detection (fixed)
+        emotion, scores = detect_emotion(text)
+        update_emotion(emotion, scores.get(emotion, 0.5))
+        print(f"Emily senses: {emotion} 😊")
+        
+        # Action check (your controller)
+        cmd_dict = controller.normalize_command(text)
+        if cmd_dict["intent"] != "unknown" and controller.can_execute(cmd_dict):
+            success, msg = controller.execute_command(cmd_dict)
+            reply = f"{msg} Anything else, pal?"
+            # Speak action reply
             voice_settings = get_voice_settings(emotion)
-
-            # ================= STEP 20: SAFE ACTION CONTROL =================
-            text_lower = text.lower()
-
-            if any(word in text_lower for word in ["open", "start", "launch"]):
-
-                if can_execute(text_lower):
-                    print(f"🛑 Permission required to run: '{text_lower}'")
-                    confirm = input("Type YES to confirm: ").strip().lower()
-
-                    if confirm == "yes":
-                        success, msg = execute_command(text_lower)
-                        reply = msg
-                    else:
-                        reply = "Action cancelled."
-
-                    memory.add(text, reply)
-                    print(f"🤖 Emily: {reply}")
-                    speak(reply, voice_settings)
-                    print("────────────────────────")
-                    continue  # VERY IMPORTANT
-
-            # ================= NORMAL CHAT =================
-            reply = generate_reply(text, emotion, memory.context())
-            memory.add(text, reply)
-
-            print(f"🤖 Emily: {reply}")
             speak(reply, voice_settings)
+            memory.add(text, reply)
+            print(f"Emily: {reply}")
             print("────────────────────────")
-
-        except KeyboardInterrupt:
-            print("\n🛑 Voice chat stopped.")
-            break
-
-        except Exception as e:
-            print("❌ Error:", e)
-            traceback.print_exc()
-            time.sleep(1)
-
+            return
+        
+        # Normal chat (friendly LLM)
+        reply = generate_reply(text, emotion, memory.context())
+        memory.add(text, reply)
+        
+        print(f"Emily: {reply}")
+        voice_settings = get_voice_settings(emotion)
+        speak(reply, voice_settings)
+        print("────────────────────────")
+    
+    try:
+        while True:
+            listener.listen(on_utterance)
+            time.sleep(0.5)  # Brief pause between utterances
+    except KeyboardInterrupt:
+        print("\nEmily: Aww, catch you later! Bye! 👋")
+    except Exception as e:
+        print("Oops:", e)
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
