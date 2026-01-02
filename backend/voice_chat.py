@@ -1,12 +1,12 @@
 import time
 import traceback
-from vad_listener import VADListener  # New VAD
-from emotion_engine import detect_emotion, update_emotion  # Fixed
-from response_engine import generate_reply  # Uses fixed LLM
-from voice_emotion_map import get_voice_settings  # Fixed
-from voice_clone import speak  # Fixed
-from memory import Memory
-from action_controller import ActionController  # Your updated one
+from .vad_listener import VADListener  # New VAD
+from .emotion_engine import detect_emotion, update_emotion  # Fixed
+from .response_engine import generate_reply  # Uses fixed LLM
+from .voice_emotion_map import get_voice_settings  # Fixed
+from .voice_clone import speak  # Fixed
+from .memory import Memory
+from .action_controller import ActionController  # Your updated one
 
 memory = Memory()
 controller = ActionController()

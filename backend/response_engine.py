@@ -1,7 +1,17 @@
-from llm_engine import generate_ai_reply
+try:
+    from .llm_engine import generate_ai_reply
+except Exception:
+    # fallback to import-by-name for direct execution (non-package)
+    try:
+        from llm_engine import generate_ai_reply
+    except Exception:
+        generate_ai_reply = None
+
 
 def generate_reply(user_text, emotion, memory_context=""):
-    return generate_ai_reply(user_text, emotion, memory_context)
+    if callable(generate_ai_reply):
+        return generate_ai_reply(user_text, emotion, memory_context)
+    return "Sorry, the LLM engine is not available."
 
 
 # import requests

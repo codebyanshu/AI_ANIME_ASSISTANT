@@ -19,7 +19,7 @@ def generate_ai_reply(user_text: str, emotion: str, memory_context: str = "") ->
             "model": MODEL,
             "prompt": system_prompt,
             "stream": False,
-            "options": {"temperature": 0.9, "top_p": 0.85}  # For natural variety
+            "options": {"temperature": 0.75, "top_p": 0.85}  # For natural variety
         }
     )
     

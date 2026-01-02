@@ -1,11 +1,16 @@
 import subprocess
 import sys
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except Exception:
+    sd = None
 import numpy as np
 
 SAMPLE_RATE = 16000
 
 def listen_once(duration_seconds: int = 5):
+    if sd is None:
+        raise RuntimeError("sounddevice not available; install with 'pip install sounddevice'")
     audio = sd.rec(
         int(duration_seconds * SAMPLE_RATE),
         samplerate=SAMPLE_RATE,
