@@ -1,22 +1,27 @@
 import time
 import traceback
-from .vad_listener import VADListener  # New VAD
-from .emotion_engine import detect_emotion, update_emotion  # Fixed
-from .response_engine import generate_reply  # Uses fixed LLM
-from .voice_emotion_map import get_voice_settings  # Fixed
-from .voice_clone import speak  # Fixed
-from .memory import Memory
-from .action_controller import ActionController  # Your updated one
+from vad_listener import VADListener  # Fixed: Absolute import (no . prefix for direct run)
+from emotion_engine import detect_emotion, update_emotion
+from response_engine import generate_reply
+from voice_emotion_map import get_voice_settings
+from voice_clone import speak
+from memory import Memory
+from action_controller import ActionController
 
 memory = Memory()
 controller = ActionController()
 
 def main():
     print("\nEmily: Hey bestie! I'm here - just chat away. I'll listen till you're done. 💕\n")
+    print("Emily's listening... (speak now!)")  # MOVED: Print only once here
     
     listener = VADListener()
     
     def on_utterance(text):
+        if text is None:  # NEW: Handle no-speech timeout
+            print("Speech not detected.")  # Only print this once per attempt
+            return
+        
         if not text.strip():
             return
         
@@ -24,7 +29,7 @@ def main():
         
         # Emotion detection (fixed)
         emotion, scores = detect_emotion(text)
-        update_emotion(emotion, scores.get(emotion, 0.5))
+        update_emotion(emotion, scores.get(emotion, 0.5))  # FIXED: Matches 2-arg def
         print(f"Emily senses: {emotion} 😊")
         
         # Action check (your controller)
@@ -50,9 +55,7 @@ def main():
         print("────────────────────────")
     
     try:
-        while True:
-            listener.listen(on_utterance)
-            time.sleep(0.5)  # Brief pause between utterances
+        listener.listen(on_utterance)  # REMOVED while True loop: Now continuous inside listen()
     except KeyboardInterrupt:
         print("\nEmily: Aww, catch you later! Bye! 👋")
     except Exception as e:

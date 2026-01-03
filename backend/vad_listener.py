@@ -4,6 +4,7 @@ import threading
 import os
 import tempfile
 import wave
+import time  # NEW: For retry delays
 
 # Optional dependencies (torch, sounddevice, faster_whisper)
 try:
@@ -24,7 +25,6 @@ except Exception:
 SAMPLE_RATE = 16000
 CHUNK_DURATION = 0.03  # 30ms chunks for real-time
 CHUNK_SIZE = int(SAMPLE_RATE * CHUNK_DURATION)
-
 
 class VADListener:
     def __init__(self):
@@ -66,8 +66,9 @@ class VADListener:
             raise RuntimeError("sounddevice not available; install with 'pip install sounddevice'")
 
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=self.audio_callback, blocksize=CHUNK_SIZE):
-            print("Emily's listening... (speak now!)")
-            while True:
+            # REMOVED: print("Emily's listening... (speak now!)") - Now in main()
+            silence_count = 0  # Counter for occasional no-speech signal
+            while True:  # Continuous loop, no break on Empty
                 try:
                     audio_chunk = self.audio_queue.get(timeout=1)
                     self.audio_buffer.extend(audio_chunk)
@@ -90,6 +91,7 @@ class VADListener:
                             self.is_speaking = True
                             print("Speaking...")
                             self.audio_buffer = []  # Reset for utterance
+                            silence_count = 0  # Reset silence
                         elif (not speech_active) and self.is_speaking:
                             self.is_speaking = False
                             print("Done speaking.")
@@ -101,24 +103,53 @@ class VADListener:
                             self.audio_buffer = []
 
                 except queue.Empty:
-                    if self.is_speaking and len(self.audio_buffer) > 0:
-                        text = self._transcribe_utterance(np.array(self.audio_buffer))
-                        if text:
-                            callback(text)
-                    break
+                    # No break - Continue listening
+                    if not self.is_speaking:
+                        silence_count += 1
+                        if silence_count % 10 == 0:  # Every ~10s of silence, signal once
+                            callback(None)  # Triggers "Speech not detected." in on_utterance
+                    else:
+                        # If was speaking but queue empty (rare), transcribe pending
+                        if len(self.audio_buffer) > 0:
+                            text = self._transcribe_utterance(np.array(self.audio_buffer))
+                            if text:
+                                callback(text)
+                            self.audio_buffer = []
+                            self.is_speaking = False
 
     def _transcribe_utterance(self, audio: np.ndarray):
         if self.whisper_model is None:
             raise RuntimeError("Whisper model not available; install faster-whisper")
 
-        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
-        audio_int16 = (audio * 32767).astype(np.int16)
-        with wave.open(tmp.name, "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(SAMPLE_RATE)
-            wf.writeframes(audio_int16.tobytes())
+        # NEW: Early return for very short audio (noise)
+        if len(audio) < SAMPLE_RATE * 0.5:
+            return ""
 
-        segments, _ = self.whisper_model.transcribe(tmp.name)
-        os.remove(tmp.name)
-        return " ".join(seg.text for seg in segments).strip()
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+        try:
+            audio_int16 = (audio * 32767).astype(np.int16)
+            with wave.open(tmp.name, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(SAMPLE_RATE)
+                wf.writeframes(audio_int16.tobytes())
+                wf.close()  # FIXED: Explicitly close wave writer
+
+            segments, _ = self.whisper_model.transcribe(tmp.name)
+            text = " ".join(seg.text for seg in segments).strip()
+        finally:
+            tmp.close()  # FIXED: Close temp file handle
+
+        # FIXED: Windows-safe delete with retry
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                os.remove(tmp.name)
+                break
+            except PermissionError:
+                if attempt < max_retries - 1:
+                    time.sleep(0.5)  # Wait for lock release
+                else:
+                    print(f"WARNING: Could not delete temp file {tmp.name} (manual cleanup needed).")
+
+        return text

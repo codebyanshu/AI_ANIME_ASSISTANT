@@ -53,9 +53,10 @@ def detect_emotion(text: str) -> Tuple[str, Dict[str, float]]:
         return _fallback_detect(text)
 
 
-def update_emotion(new_emotion: str, confidence=0.6) -> Dict[str, float]:
+def update_emotion(new_emotion: str, confidence: float = 0.6) -> Dict[str, float]:  # FIXED: Explicit 2-arg signature (confidence optional)
+    """Update current emotion state with new emotion and confidence/intensity."""
     if new_emotion == emotion_state["current"]:
-        emotion_state["intensity"] = min(1.0, emotion_state["intensity"] + 0.1)
+        emotion_state["intensity"] = min(1.0, emotion_state["intensity"] + 0.1 * confidence)  # Use confidence to scale
     else:
         emotion_state["current"] = new_emotion
         emotion_state["intensity"] = confidence

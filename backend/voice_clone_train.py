@@ -2,8 +2,10 @@
 # Voice Cloning using Coqui TTS
 # -------------------------------
 import os
+from TTS.api import TTS
 import soundfile as sf
 import numpy as np
+import typing as tp  # For type casting
 
 # Create output folder (unchanged)
 os.makedirs("output", exist_ok=True)
@@ -12,8 +14,9 @@ os.makedirs("output", exist_ok=True)
 MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
 
 LANGUAGE = "en"
-SPEAKER_WAV = r"A:\AI_ANIME_ASSISTANT\voices\my_voice.wav"
-OUTPUT_PATH = "output/output_n.wav"
+# SPEAKER_WAV = r"A:\AI_ANIME_ASSISTANT\voices\my_voice.wav"
+SPEAKER_WAV = None
+OUTPUT_PATH = "output/output_fin.wav"
 
 # ==============================
 
@@ -38,16 +41,9 @@ TEXT_LINES = [
 
 def main():
     print("Loading model...")
-    try:
-        from TTS.api import TTS
-    except Exception:
-        print("TTS package not available. Install requirements with: pip install -r requirements.txt")
-        raise
-
     tts = TTS(model_name=MODEL_NAME)
 
     audio_chunks = []
-    sample_rate = 22050
 
     print("Generating emotional voice (line by line)...")
 
@@ -61,28 +57,28 @@ def main():
             speed=0.85
         )
 
-        # tts.tts may return a numpy array or a tuple (array, sr)
-        if isinstance(wav, tuple) and len(wav) >= 1:
+        # Handle tuple/list or dict output (audio, sample_rate)
+        if isinstance(wav, (tuple, list)) and len(wav) >= 1:
             audio = wav[0]
             if len(wav) > 1 and isinstance(wav[1], int):
-                sample_rate = wav[1]
+                sample_rate = tp.cast(int, wav[1])  # Fix type checker
+        elif isinstance(wav, dict):
+            # support dict-like outputs from TTS (keys may vary)
+            audio = wav.get("wav") or wav.get("audio") or wav.get("output") or np.array([])
+            sample_rate = tp.cast(int, wav.get("sample_rate", wav.get("sr", 22050)))
         else:
             audio = wav
+            sample_rate = 22050  # Default
 
-        audio = np.asarray(audio, dtype=np.float32)
         audio_chunks.append(audio)
 
-    # -------------------------------
     # Merge all lines into one output
-    # -------------------------------
-    # create short silence between lines (0.2s)
-    silence = np.zeros(int(0.2 * sample_rate), dtype=np.float32)
+    final_audio = []
+    silence = [0.0] * int(0.2 * sample_rate)  # 0.2 sec pause
 
-    if audio_chunks:
-        final_audio = [item for pair in ((chunk, silence) for chunk in audio_chunks) for item in pair]
-        final_audio = np.concatenate(final_audio)
-    else:
-        final_audio = np.array([], dtype=np.float32)
+    for chunk in audio_chunks:
+        final_audio.extend(chunk)
+        final_audio.extend(silence)
 
     sf.write(OUTPUT_PATH, final_audio, sample_rate)
 
