@@ -3,7 +3,8 @@ from typing import Dict, Tuple
 # Try to load transformers pipeline; if unavailable, provide a simple fallback.
 try:
     from transformers import pipeline
-    emotion_classifier = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", return_all_scores=True)
+    # Fixed: Use top_k=None instead of deprecated return_all_scores=True
+    emotion_classifier = pipeline("text-classification", model="bhadresh-savani/distilbert-base-uncased-emotion", top_k=None)
 except Exception:
     emotion_classifier = None
 
@@ -34,8 +35,12 @@ def detect_emotion(text: str) -> Tuple[str, Dict[str, float]]:
         return emotion, scores
 
     try:
-        scores = emotion_classifier(text)[0]["scores"]
-        emotion_scores = {item["label"]: item["score"] for item in scores}
+        # New format with top_k=None: returns list of lists (one list per input)
+        # Each inner list is [{'label': 'joy', 'score': 0.95}, ...] sorted by score descending
+        prediction = emotion_classifier(text)
+        score_list = prediction[0]  # since single input
+        emotion_scores = {item["label"]: item["score"] for item in score_list} 
+
         emotion_map = {
             "joy": "happy", "sadness": "sad", "anger": "angry",
             "fear": "fear", "surprise": "surprise", "disgust": "angry", "neutral": "calm"
@@ -50,13 +55,15 @@ def detect_emotion(text: str) -> Tuple[str, Dict[str, float]]:
         emotion_state["intensity"] = max(mapped_scores.values())
         return emotion, mapped_scores
     except Exception:
-        return _fallback_detect(text)
+        emotion, scores = _fallback_detect(text)
+        emotion_state["current"] = emotion
+        emotion_state["intensity"] = max(scores.values())
+        return emotion, scores
 
 
-def update_emotion(new_emotion: str, confidence: float = 0.6) -> Dict[str, float]:  # FIXED: Explicit 2-arg signature (confidence optional)
-    """Update current emotion state with new emotion and confidence/intensity."""
+def update_emotion(new_emotion: str, confidence=0.6) -> Dict[str, float]:
     if new_emotion == emotion_state["current"]:
-        emotion_state["intensity"] = min(1.0, emotion_state["intensity"] + 0.1 * confidence)  # Use confidence to scale
+        emotion_state["intensity"] = min(1.0, emotion_state["intensity"] + 0.1)
     else:
         emotion_state["current"] = new_emotion
         emotion_state["intensity"] = confidence
