@@ -1,55 +1,50 @@
-import requests
+import os
+from typing import Optional
+from groq import Groq
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL = "mistral"
+# Load API key from environment
+api_key = os.getenv("GROQ_API_KEY")
+if not api_key:
+    raise ValueError("GROQ_API_KEY not set in environment variables.")
 
-def generate_ai_reply(user_text, emotion, memory_context=""):
-    prompt = f"""You are Emily, an emotional AI assistant. Emotion: {emotion} Memory: {memory_context} User: {user_text} Emily:"""
+client = Groq(api_key=api_key)
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL,
-            "prompt": prompt,
-            "stream": False
-        }
-    )
+# System prompt for Emily's personality (customize as needed)
+SYSTEM_PROMPT = """
+You are Emily, a cheerful anime-style AI assistant and best friend. Respond in a fun, empathetic, girly way with emojis. Keep responses short, engaging, and natural like a teen girl chatting. Use 💕, 😊, etc. Stay in character.
+"""
 
-    if response.status_code != 200:
-        return "Sorry, I'm having trouble thinking right now."
-
-    return response.json()["response"].strip()
-
-# import requests
-# from typing import Optional
-
-# OLLAMA_URL = "http://localhost:11434/api/generate"
-# MODEL = "mistral"  # Or phi3 for speed
-
-# def generate_ai_reply(user_text: str, emotion: str, memory_context: str = "") -> str:
-#     # Friendly prompt: Make Emily sound like a best friend - casual, empathetic, imperfect
-#     system_prompt = f"""You are Emily, my quirky best friend who's always got my back. We're like old pals chatting over coffee - keep it real, fun, and heartfelt. 
-#     Use slang, emojis sometimes, short sentences, and ask questions to keep the convo going. Mirror my emotion: if I'm {emotion}, respond with empathy (e.g., 'Aw, that sucks! Wanna talk about it? ❤️' for sad).
-#     Don't be perfect or robotic - throw in 'um', 'like', or laughs ('haha!'). No 'As an AI...' - just be you.
-#     Memory: {memory_context}
-#     User (feelin' {emotion}): {user_text}
-#     Emily (reply casually):"""
+def generate_response(user_input: str, context: Optional[str] = None, max_tokens: int = 150, temperature: float = 0.7) -> str:
+    """
+    Generate a response using Groq API.
+    - user_input: The user's message.
+    - context: Optional previous conversation history.
+    - max_tokens: Limit response length.
+    - temperature: Controls creativity (0.7 for balanced).
+    """
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     
-#     response = requests.post(
-#         OLLAMA_URL,
-#         json={
-#             "model": MODEL,
-#             "prompt": system_prompt,
-#             "stream": False,
-#             "options": {"temperature": 0.75, "top_p": 0.85}  # For natural variety
-#         }
-#     )
+    if context:
+        messages.append({"role": "assistant", "content": context})  # Add history if provided
     
-#     if response.status_code != 200:
-#         return "Hey, um, I'm drawing a blank right now... What's up with you? 😅"
+    messages.append({"role": "user", "content": user_input})
     
-#     reply = response.json()["response"].strip()
-#     # Clean and add friend vibe if needed
-#     if not reply.endswith(('.', '!', '?')):
-#         reply += " What's on your mind? 😉"
-#     return reply
+    try:
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",  # Fast, free model; swap to "mixtral-8x7b-32768" for more creativity
+            messages=messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=0.9,
+        )
+        return completion.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Error in LLM generation: {e}")
+        return "Oops, something went wrong! 😅 Let's try again."
+    
+import google.generativeai as genai
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+model = genai.GenerativeModel('gemini-1.5-flash')
+def generate_response(prompt, ...):
+    response = model.generate_content(prompt)
+    return response.text
