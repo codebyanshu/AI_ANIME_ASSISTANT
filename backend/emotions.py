@@ -4,4 +4,6 @@ EMOTION_VOICE_MAP = {
     "serious": { "rate": "-5%", "pitch": "-5Hz" },
     "comforting": { "rate": "-2%", "pitch": "+5Hz" },
     "excited": { "rate": "+15%", "pitch": "+18Hz" },
+    "concise": { "rate": "-8%", "pitch": "-4Hz" },
+    "warm": { "rate": "+4%", "pitch": "+8Hz" },
 }
