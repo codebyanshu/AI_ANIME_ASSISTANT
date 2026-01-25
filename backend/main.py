@@ -33,6 +33,7 @@ async def main():
 
         if cmd_from_llm or user_looks_like_pc:
             cmd = cmd_from_llm or user
+            print(f"DEBUG: main.py deciding command -> cmd_from_llm='{cmd_from_llm}', user='{user}', final_cmd='{cmd}'")
             # pass model display so perform_action can extract code blocks or helpful text
             result = perform_action(cmd, user, data.get("display", ""))
             print("PC ACTION:", result)

@@ -28,10 +28,18 @@ def send_whatsapp(message: str, phone: Optional[str] = None, contact_name: Optio
 			import pyautogui
 			time.sleep(1.5)
 			if contact:
-				pyautogui.typewrite(contact)
+				# Try to reliably focus WhatsApp's contact search, then clear and type
+				# (Ctrl+K focuses search in WhatsApp Web/desktop; fallback to Ctrl+F)
+				pyautogui.hotkey('ctrl', 'k')
 				time.sleep(0.2)
+				# ensure search is empty
+				pyautogui.hotkey('ctrl', 'a')
+				pyautogui.press('backspace')
+				pyautogui.typewrite(contact, interval=0.03)
+				time.sleep(0.3)
 				pyautogui.press('enter')
-				time.sleep(0.4)
+				# allow chat to open and input to focus
+				time.sleep(1.0)
 			pyperclip.copy(msg)
 			pyautogui.hotkey('ctrl', 'v')
 			time.sleep(0.05)
@@ -40,24 +48,32 @@ def send_whatsapp(message: str, phone: Optional[str] = None, contact_name: Optio
 		except Exception:
 			return False
 
-	# 1) Try protocol handler first
-	try:
-		if phone:
-			prot = f"whatsapp://send?phone={phone}&text={quoted}"
-		else:
-			prot = f"whatsapp://send?text={quoted}"
+	# 1) Try protocol handler first — only when we have a phone number or no
+	# contact_name. If a contact_name is provided we avoid protocol because some
+	# handlers prefill the message and that can interfere with the search input.
+	use_protocol = bool(phone or not contact_name)
+	if use_protocol:
+		try:
+			if phone:
+				prot = f"whatsapp://send?phone={phone}&text={quoted}"
+			else:
+				prot = f"whatsapp://send?text={quoted}"
 
-		if platform.system() == "Windows":
-			os.startfile(prot)
-		else:
-			webbrowser.open(prot)
+			if platform.system() == "Windows":
+				os.startfile(prot)
+			else:
+				webbrowser.open(prot)
 
-		if try_automation(message, contact_name):
-			return f"Opened native WhatsApp and attempted to search contact & send message{' to ' + (contact_name or phone) if (contact_name or phone) else ''}."
-		return f"Opened native WhatsApp (protocol) with message{' to ' + (contact_name or phone) if (contact_name or phone) else ''}. Automation unavailable."
-	except Exception:
-		# Protocol failed — continue to next fallback
-		pass
+			if try_automation(message, contact_name):
+				_target = contact_name or phone
+				_suffix = f" to {_target}" if _target else ""
+				return f"Opened native WhatsApp and attempted to search contact & send message{_suffix}."
+			_target = contact_name or phone
+			_suffix = f" to {_target}" if _target else ""
+			return f"Opened native WhatsApp (protocol) with message{_suffix}. Automation unavailable."
+		except Exception:
+			# Protocol failed — continue to next fallback
+			pass
 
 	# 2) Try known exe locations (desktop app)
 	exe_candidates = []
@@ -89,7 +105,9 @@ def send_whatsapp(message: str, phone: Optional[str] = None, contact_name: Optio
 			url = f"https://web.whatsapp.com/send?text={quoted}"
 
 	webbrowser.open(url)
-	return f"Opened WhatsApp Web with message{' to ' + (contact_name or phone) if (contact_name or phone) else ''}."
+	_target = contact_name or phone
+	_suffix = f" to {_target}" if _target else ""
+	return f"Opened WhatsApp Web with message{_suffix}."
 
 
 def make_call(number: str) -> str:
@@ -326,5 +344,3 @@ def open_application(name: str) -> str:
 			last_err = e
 
 	return f"Failed to open {name}. {last_err or ''}"
-
-
